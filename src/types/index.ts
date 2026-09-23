@@ -485,7 +485,11 @@ export type AutomationTriggerType =
   | 'time_based'
   /** Customer tapped a reply button / list row whose id matches; lets
    *  multi-step menus be chained across automations. */
-  | 'interactive_reply';
+  | 'interactive_reply'
+  /** Customer shared their location (e.g. in reply to a
+   *  send_location_request step). No config — matches every inbound
+   *  location message. */
+  | 'location_received';
 
 export type AutomationStepType =
   | 'send_message'

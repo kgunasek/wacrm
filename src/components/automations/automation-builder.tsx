@@ -147,6 +147,7 @@ const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
   { value: "first_inbound_message" },
   { value: "keyword_match" },
   { value: "interactive_reply" },
+  { value: "location_received" },
   { value: "new_contact_created" },
   { value: "conversation_assigned" },
   { value: "tag_added" },

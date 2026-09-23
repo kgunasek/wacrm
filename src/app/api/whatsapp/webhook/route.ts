@@ -910,6 +910,7 @@ async function processMessage(
     | 'new_message_received'
     | 'keyword_match'
     | 'interactive_reply'
+    | 'location_received'
   )[] = []
   // Content-level triggers are suppressed when a flow consumed the
   // message — see the comment block above.
@@ -921,6 +922,12 @@ async function processMessage(
     // have consumed the reply and this is skipped.
     if (interactiveReplyId) {
       automationTriggers.push('interactive_reply')
+    }
+    // Customer shared their location (e.g. tapped the native picker
+    // opened by a send_location_request step) — lets an automation
+    // react (tag the contact, acknowledge) without a condition step.
+    if (message.type === 'location') {
+      automationTriggers.push('location_received')
     }
   }
   // new_contact_created fires only when the webhook just auto-created the

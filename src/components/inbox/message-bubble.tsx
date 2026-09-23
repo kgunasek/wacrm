@@ -188,13 +188,38 @@ function MessageContent({
         </div>
       );
 
-    case "location":
+    case "location": {
+      // content_text is built by the webhook as
+      // `[name] - [address] - lat,lng` (segments joined with " - ",
+      // omitted ones dropped) — the coordinate pair is always the last
+      // segment. Extract it so the bubble can link straight to Google
+      // Maps instead of showing raw, uncopyable-looking digits.
+      const text = message.content_text || "";
+      const lastSegment = text.split(" - ").pop() ?? "";
+      const coordMatch = lastSegment.match(
+        /^(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)$/,
+      );
+      const mapsUrl = coordMatch
+        ? `https://www.google.com/maps?q=${coordMatch[1]},${coordMatch[2]}`
+        : null;
       return (
         <div className="flex items-center gap-2 text-sm">
           <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span>{message.content_text || t("locationShared")}</span>
+          {mapsUrl ? (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-2 hover:no-underline"
+            >
+              {text || t("locationShared")}
+            </a>
+          ) : (
+            <span>{text || t("locationShared")}</span>
+          )}
         </div>
       );
+    }
 
     case "interactive": {
       // Three cases share content_type='interactive':

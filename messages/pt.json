@@ -955,6 +955,10 @@
         "time_based": {
           "label": "Por horário",
           "hint": "Em um agendamento recorrente"
+        },
+        "location_received": {
+          "label": "Localização compartilhada",
+          "hint": "O cliente compartilha sua localização (por exemplo, em resposta a uma etapa de Solicitar localização)"
         }
       },
       "trigger": "Gatilho",

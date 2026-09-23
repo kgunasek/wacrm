@@ -955,6 +955,10 @@
         "time_based": {
           "label": "Por horario",
           "hint": "Según una programación recurrente"
+        },
+        "location_received": {
+          "label": "Ubicación compartida",
+          "hint": "El cliente comparte su ubicación (p. ej. en respuesta a un paso de Solicitar ubicación)"
         }
       },
       "trigger": "Disparador",

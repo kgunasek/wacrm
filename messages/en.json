@@ -955,6 +955,10 @@
         "time_based": {
           "label": "Time-Based",
           "hint": "On a recurring schedule"
+        },
+        "location_received": {
+          "label": "Location Shared",
+          "hint": "Customer shares their location (e.g. in reply to a Send Location Request step)"
         }
       },
       "trigger": "Trigger",

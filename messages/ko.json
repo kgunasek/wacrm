@@ -955,6 +955,10 @@
         "time_based": {
           "label": "시간 기반",
           "hint": "반복 일정에 따라"
+        },
+        "location_received": {
+          "label": "위치 공유됨",
+          "hint": "고객이 위치를 공유했을 때 (예: 위치 요청 보내기 단계에 대한 응답)"
         }
       },
       "trigger": "트리거",

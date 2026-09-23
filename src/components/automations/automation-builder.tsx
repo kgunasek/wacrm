@@ -33,6 +33,7 @@ import {
   ArrowUp,
   MousePointerClick,
   List,
+  MapPin,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -59,6 +60,7 @@ import {
   InteractiveBuilder,
   blankButtonsPayload,
   blankListPayload,
+  type BuilderPayload,
 } from "@/components/interactive/interactive-builder"
 import { interactivePayloadPreviewText } from "@/lib/whatsapp/interactive"
 import { createClient } from "@/lib/supabase/client"
@@ -110,6 +112,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   send_message: { label: "send_message", icon: MessageSquare, border: "border-l-primary" },
   send_buttons: { label: "send_buttons", icon: MousePointerClick, border: "border-l-primary" },
   send_list: { label: "send_list", icon: List, border: "border-l-primary" },
+  send_location_request: { label: "send_location_request", icon: MapPin, border: "border-l-primary" },
   send_template: { label: "send_template", icon: FileText, border: "border-l-primary" },
   add_tag: { label: "add_tag", icon: Tag, border: "border-l-primary" },
   remove_tag: { label: "remove_tag", icon: TagIcon, border: "border-l-primary" },
@@ -126,6 +129,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "send_message",
   "send_buttons",
   "send_list",
+  "send_location_request",
   "send_template",
   "add_tag",
   "remove_tag",
@@ -169,6 +173,13 @@ function toStepConfig(p: InteractiveMessagePayload): Record<string, unknown> {
 function asInteractive(cfg: Record<string, unknown>): InteractiveMessagePayload {
   return cfg as unknown as InteractiveMessagePayload
 }
+// send_buttons/send_list steps only ever hold a buttons or list payload
+// (send_location_request has its own case + editor below), so the
+// shared InteractiveBuilder — which can't render a location-request
+// payload — gets this narrower cast instead of asInteractive.
+function asBuilderPayload(cfg: Record<string, unknown>): BuilderPayload {
+  return cfg as unknown as BuilderPayload
+}
 
 function blankConfig(type: AutomationStepType): Record<string, unknown> {
   switch (type) {
@@ -178,6 +189,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return toStepConfig(blankButtonsPayload())
     case "send_list":
       return toStepConfig(blankListPayload())
+    case "send_location_request":
+      return toStepConfig({ kind: "location_request", body: "" })
     case "send_template":
       return { template_name: "", language: "en_US" }
     case "add_tag":
@@ -1320,11 +1333,22 @@ function StepEditor({
       // builder edits it in place (and enforces Meta's limits + preview).
       return (
         <InteractiveBuilder
-          value={asInteractive(cfg)}
+          value={asBuilderPayload(cfg)}
           onChange={(payload) =>
             onChange({ ...step, step_config: toStepConfig(payload) })
           }
         />
+      )
+    case "send_location_request":
+      return (
+        <FieldBlock label={t("config.locationRequestBody")}>
+          <Textarea
+            value={(cfg.body as string) ?? ""}
+            onChange={(e) => set({ kind: "location_request", body: e.target.value })}
+            placeholder={t("config.placeholderLocationRequestBody")}
+            className="min-h-24 bg-muted text-foreground"
+          />
+        </FieldBlock>
       )
     case "send_template":
       return (
@@ -1534,6 +1558,7 @@ function previewFor(step: BuilderStep): string {
       return (step.step_config.text as string) || "no text yet"
     case "send_buttons":
     case "send_list":
+    case "send_location_request":
       return interactivePayloadPreviewText(asInteractive(step.step_config)) || "no body yet"
     case "send_template":
       return (step.step_config.template_name as string) || "pick a template"

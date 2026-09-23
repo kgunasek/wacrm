@@ -920,7 +920,8 @@
         "wait": "Aguardar",
         "condition": "Condição (Se/Senão)",
         "send_webhook": "Enviar webhook",
-        "close_conversation": "Fechar conversa"
+        "close_conversation": "Fechar conversa",
+        "send_location_request": "Solicitar localização"
       },
       "triggers": {
         "new_message_received": {
@@ -1066,7 +1067,9 @@
         "matchWord": "Palavra inteira",
         "matchWordHint": "Corresponde à palavra-chave apenas como palavra isolada, então \"k\" não dispara mais em \"thanks\". Ideal para palavras-chave curtas em idiomas com espaços; use Contém para idiomas escritos sem espaços.",
         "matchExact": "Exata",
-        "closeConversationHint": "Define o status da conversa como \"fechada\". Nenhuma configuração necessária."
+        "closeConversationHint": "Define o status da conversa como \"fechada\". Nenhuma configuração necessária.",
+        "locationRequestBody": "Texto da mensagem",
+        "placeholderLocationRequestBody": "Compartilhe sua localização atual para que nosso entregador possa encontrá-lo."
       }
     }
   },

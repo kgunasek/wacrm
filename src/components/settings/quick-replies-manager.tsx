@@ -18,11 +18,9 @@ import { SettingsPanelHead } from "./settings-panel-head";
 import {
   InteractiveBuilder,
   blankButtonsPayload,
+  type BuilderPayload,
 } from "@/components/interactive/interactive-builder";
-import {
-  interactivePayloadPreviewText,
-  type InteractiveMessagePayload,
-} from "@/lib/whatsapp/interactive";
+import { interactivePayloadPreviewText } from "@/lib/whatsapp/interactive";
 import type { QuickReply, QuickReplyKind } from "@/types";
 
 interface DraftState {
@@ -30,7 +28,7 @@ interface DraftState {
   title: string;
   kind: QuickReplyKind;
   content_text: string;
-  interactive_payload: InteractiveMessagePayload;
+  interactive_payload: BuilderPayload;
 }
 
 function emptyDraft(): DraftState {
@@ -70,8 +68,13 @@ export function QuickRepliesManager() {
       title: qr.title,
       kind: qr.kind,
       content_text: qr.content_text ?? "",
+      // This dialog only edits buttons/list payloads. A location-request
+      // quick reply isn't creatable from this UI, but isn't impossible
+      // via direct API/script insert — fall back rather than crash.
       interactive_payload:
-        qr.interactive_payload ?? blankButtonsPayload(),
+        qr.interactive_payload && qr.interactive_payload.kind !== "location_request"
+          ? qr.interactive_payload
+          : blankButtonsPayload(),
     });
 
   const save = useCallback(async () => {

@@ -87,5 +87,11 @@
     "sharp": "^0.35.4",
     "brace-expansion@^1.0.0": "^1.1.18",
     "brace-expansion@^5.0.0": "^5.0.9"
+  },
+  "allowScripts": {
+    "@parcel/watcher@2.5.6": true,
+    "fsevents@2.3.3": true,
+    "@swc/core@1.15.43": true,
+    "unrs-resolver@1.11.1": true
   }
 }

@@ -14,7 +14,6 @@ import {
   validateInteractivePayload,
   type InteractiveButtonsPayload,
   type InteractiveListPayload,
-  type InteractiveMessagePayload,
 } from "@/lib/whatsapp/interactive";
 import { InteractivePreview } from "./interactive-preview";
 
@@ -53,9 +52,15 @@ export function blankListPayload(): InteractiveListPayload {
   };
 }
 
+/** This builder only ever edits reply-buttons or list payloads — a
+ *  location-request payload has no header/footer/buttons/rows to edit
+ *  and is configured with a single body-text field instead (see the
+ *  automation step editor). */
+export type BuilderPayload = InteractiveButtonsPayload | InteractiveListPayload;
+
 interface InteractiveBuilderProps {
-  value: InteractiveMessagePayload;
-  onChange: (payload: InteractiveMessagePayload) => void;
+  value: BuilderPayload;
+  onChange: (payload: BuilderPayload) => void;
   /** Show the live WhatsApp-style preview beside the form. Default true. */
   showPreview?: boolean;
 }
@@ -76,8 +81,8 @@ export function InteractiveBuilder({
   const [advanced, setAdvanced] = useState(false);
   const validation = validateInteractivePayload(value);
 
-  const setField = (patch: Partial<InteractiveMessagePayload>) =>
-    onChange({ ...value, ...patch } as InteractiveMessagePayload);
+  const setField = (patch: Partial<BuilderPayload>) =>
+    onChange({ ...value, ...patch } as BuilderPayload);
 
   const switchKind = (kind: "buttons" | "list") => {
     if (kind === value.kind) return;
@@ -202,7 +207,7 @@ function ButtonsEditor({
   advanced,
 }: {
   value: InteractiveButtonsPayload;
-  onChange: (p: InteractiveMessagePayload) => void;
+  onChange: (p: BuilderPayload) => void;
   advanced: boolean;
 }) {
   const t = useTranslations("Interactive");
@@ -285,7 +290,7 @@ function ListEditor({
   advanced,
 }: {
   value: InteractiveListPayload;
-  onChange: (p: InteractiveMessagePayload) => void;
+  onChange: (p: BuilderPayload) => void;
   advanced: boolean;
 }) {
   const t = useTranslations("Interactive");

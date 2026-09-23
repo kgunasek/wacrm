@@ -1,6 +1,7 @@
 import {
   sendInteractiveButtons,
   sendInteractiveList,
+  sendLocationRequest,
   sendMediaMessage,
   sendTextMessage,
   type InteractiveButton,
@@ -338,9 +339,30 @@ export async function engineSendInteractiveList(
   return sendInteractiveViaMeta({ ...args, kind: 'list' })
 }
 
+interface SendInteractiveLocationRequestEngineArgs {
+  accountId: string
+  userId: string
+  conversationId: string
+  contactId: string
+  bodyText: string
+}
+
+/**
+ * Send Meta's native location-request message — a "Send Location"
+ * button that opens WhatsApp's own map/pin picker. The customer's pick
+ * arrives back as a normal inbound `location` message (already handled
+ * by the webhook), not as an interactive reply.
+ */
+export async function engineSendInteractiveLocationRequest(
+  args: SendInteractiveLocationRequestEngineArgs,
+): Promise<{ whatsapp_message_id: string }> {
+  return sendInteractiveViaMeta({ ...args, kind: 'location_request' })
+}
+
 type SendInput =
   | (SendInteractiveButtonsEngineArgs & { kind: 'buttons' })
   | (SendInteractiveListEngineArgs & { kind: 'list' })
+  | (SendInteractiveLocationRequestEngineArgs & { kind: 'location_request' })
 
 async function sendInteractiveViaMeta(
   input: SendInput,
@@ -385,6 +407,15 @@ async function sendInteractiveViaMeta(
         buttons: input.buttons,
         headerText: input.headerText,
         footerText: input.footerText,
+      })
+      return r.messageId
+    }
+    if (input.kind === 'location_request') {
+      const r = await sendLocationRequest({
+        phoneNumberId,
+        accessToken,
+        to: phone,
+        bodyText: input.bodyText,
       })
       return r.messageId
     }
@@ -446,14 +477,16 @@ async function sendInteractiveViaMeta(
           footer: input.footerText,
           buttons: input.buttons,
         }
-      : {
-          kind: 'list',
-          body: input.bodyText,
-          header: input.headerText,
-          footer: input.footerText,
-          button_label: input.buttonLabel,
-          sections: input.sections,
-        }
+      : input.kind === 'location_request'
+        ? { kind: 'location_request', body: input.bodyText }
+        : {
+            kind: 'list',
+            body: input.bodyText,
+            header: input.headerText,
+            footer: input.footerText,
+            button_label: input.buttonLabel,
+            sections: input.sections,
+          }
 
   const { error: msgErr } = await db.from('messages').insert({
     conversation_id: input.conversationId,

@@ -60,7 +60,8 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
       }
       break
     case 'send_buttons':
-    case 'send_list': {
+    case 'send_list':
+    case 'send_location_request': {
       // The whole step_config IS the interactive payload; validate it
       // against Meta's limits (same check the engine runs before send).
       const result = validateInteractivePayload(c)

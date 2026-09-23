@@ -3,6 +3,7 @@ import type { InteractiveMessagePayload } from '@/lib/whatsapp/interactive'
 import {
   engineSendInteractiveButtons,
   engineSendInteractiveList,
+  engineSendInteractiveLocationRequest,
 } from '@/lib/flows/meta-send'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
@@ -92,6 +93,12 @@ export async function engineSendInteractive(
       headerText: payload.header,
       footerText: payload.footer,
       buttons: payload.buttons,
+    })
+  }
+  if (payload.kind === 'location_request') {
+    return engineSendInteractiveLocationRequest({
+      ...common,
+      bodyText: payload.body,
     })
   }
   return engineSendInteractiveList({

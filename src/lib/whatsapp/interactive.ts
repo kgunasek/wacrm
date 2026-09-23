@@ -68,9 +68,16 @@ export interface InteractiveListPayload {
   sections: InteractiveListSection[]
 }
 
+export interface InteractiveLocationRequestPayload {
+  kind: 'location_request'
+  /** Body text shown above the native "Send Location" button (≤ 1024 chars). */
+  body: string
+}
+
 export type InteractiveMessagePayload =
   | InteractiveButtonsPayload
   | InteractiveListPayload
+  | InteractiveLocationRequestPayload
 
 export type InteractiveValidation =
   | { ok: true }
@@ -125,8 +132,15 @@ export function validateInteractivePayload(
       `Body text exceeds the ${INTERACTIVE_LIMITS.bodyMaxLength}-character limit.`,
     )
   }
-  const hf = validateHeaderFooter(p.header, p.footer)
-  if (!hf.ok) return hf
+  // location_request has no header/footer in Meta's schema; only
+  // check them for the kinds that support them.
+  if (p.kind !== 'location_request') {
+    const hf = validateHeaderFooter(
+      (p as Partial<InteractiveButtonsPayload | InteractiveListPayload>).header,
+      (p as Partial<InteractiveButtonsPayload | InteractiveListPayload>).footer,
+    )
+    if (!hf.ok) return hf
+  }
 
   if (p.kind === 'buttons') {
     const buttons = (p as InteractiveButtonsPayload).buttons
@@ -223,7 +237,13 @@ export function validateInteractivePayload(
     return ok()
   }
 
-  return fail('Interactive message must be reply buttons or a list.')
+  if (p.kind === 'location_request') {
+    // Body-only — no header/footer/buttons in Meta's schema for this
+    // type, and the shared body-length check above already covers it.
+    return ok()
+  }
+
+  return fail('Interactive message must be reply buttons, a list, or a location request.')
 }
 
 /**
@@ -235,5 +255,7 @@ export function interactivePayloadPreviewText(
 ): string {
   const body = payload.body?.trim()
   if (body) return body
-  return payload.kind === 'buttons' ? '[buttons]' : '[list]'
+  if (payload.kind === 'buttons') return '[buttons]'
+  if (payload.kind === 'list') return '[list]'
+  return '[location request]'
 }

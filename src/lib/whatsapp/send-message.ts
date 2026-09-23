@@ -27,6 +27,7 @@ import {
   sendMediaMessage,
   sendInteractiveButtons,
   sendInteractiveList,
+  sendLocationRequest,
   type MediaKind,
 } from '@/lib/whatsapp/meta-api';
 import {
@@ -378,6 +379,16 @@ export async function sendMessageToConversation(
           headerText: p.header || undefined,
           footerText: p.footer || undefined,
           buttons: p.buttons,
+          contextMessageId,
+        });
+        return result.messageId;
+      }
+      if (p.kind === 'location_request') {
+        const result = await sendLocationRequest({
+          phoneNumberId: config.phone_number_id,
+          accessToken,
+          to: phone,
+          bodyText: p.body,
           contextMessageId,
         });
         return result.messageId;

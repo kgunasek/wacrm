@@ -1133,6 +1133,59 @@ export async function sendInteractiveList(
   return { messageId: data.messages[0].id }
 }
 
+export interface SendLocationRequestArgs {
+  phoneNumberId: string
+  accessToken: string
+  to: string
+  /** The body text — what the customer reads above the "Send Location" button. */
+  bodyText: string
+  contextMessageId?: string
+}
+
+/**
+ * Send Meta's native location-request interactive message: a "Send
+ * Location" button that opens WhatsApp's own map/pin picker, unlike
+ * sendInteractiveButtons/sendInteractiveList which only round-trip a
+ * tapped id. The customer's pick arrives in the webhook as a normal
+ * `messages[0].type === 'location'` payload (already handled there),
+ * not as an interactive reply.
+ *
+ * No header/footer/buttons — Meta's schema for this type is body-only.
+ */
+export async function sendLocationRequest(
+  args: SendLocationRequestArgs
+): Promise<MetaSendResult> {
+  const { phoneNumberId, accessToken, to, bodyText, contextMessageId } = args
+  validateInteractiveBody(bodyText)
+
+  const body: Record<string, unknown> = {
+    messaging_product: 'whatsapp',
+    ...recipientFields(to),
+    type: 'interactive',
+    interactive: {
+      type: 'location_request_message',
+      body: { text: bodyText },
+      action: { name: 'send_location' },
+    },
+  }
+  if (contextMessageId) body.context = { message_id: contextMessageId }
+
+  const url = `${META_API_BASE}/${phoneNumberId}/messages`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
+  const data = await response.json()
+  return { messageId: data.messages[0].id }
+}
+
 function validateInteractiveBody(bodyText: string): void {
   if (!bodyText) throw new Error('Interactive message requires bodyText.')
   if (bodyText.length > INTERACTIVE_LIMITS.bodyMaxLength) {

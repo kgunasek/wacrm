@@ -5,6 +5,7 @@ export type {
   InteractiveMessagePayload,
   InteractiveButtonsPayload,
   InteractiveListPayload,
+  InteractiveLocationRequestPayload,
   InteractiveButton,
   InteractiveListRow,
   InteractiveListSection,
@@ -490,6 +491,7 @@ export type AutomationStepType =
   | 'send_message'
   | 'send_buttons'
   | 'send_list'
+  | 'send_location_request'
   | 'send_template'
   | 'add_tag'
   | 'remove_tag'
@@ -551,6 +553,7 @@ export interface SendMessageStepConfig {
  */
 export type SendButtonsStepConfig = InteractiveMessagePayload;
 export type SendListStepConfig = InteractiveMessagePayload;
+export type SendLocationRequestStepConfig = InteractiveMessagePayload;
 
 export interface SendTemplateStepConfig {
   template_name: string;
@@ -616,6 +619,7 @@ export type AutomationStepConfig =
   | SendMessageStepConfig
   | SendButtonsStepConfig
   | SendListStepConfig
+  | SendLocationRequestStepConfig
   | SendTemplateStepConfig
   | TagStepConfig
   | AssignConversationStepConfig

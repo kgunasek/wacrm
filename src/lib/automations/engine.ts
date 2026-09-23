@@ -10,6 +10,7 @@ import type {
   SendMessageStepConfig,
   SendButtonsStepConfig,
   SendListStepConfig,
+  SendLocationRequestStepConfig,
   SendTemplateStepConfig,
   SendWebhookStepConfig,
   TagStepConfig,
@@ -376,8 +377,9 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
     }
 
     case 'send_buttons':
-    case 'send_list': {
-      const payload = step.step_config as SendButtonsStepConfig | SendListStepConfig
+    case 'send_list':
+    case 'send_location_request': {
+      const payload = step.step_config as SendButtonsStepConfig | SendListStepConfig | SendLocationRequestStepConfig
       if (!args.contactId) throw new Error(`${step.step_type} needs a contact`)
       // Validate against Meta's limits before the network call so a bad
       // payload surfaces as a clear failed-step detail rather than a raw

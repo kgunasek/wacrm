@@ -51,6 +51,7 @@ import { useTranslations } from "next-intl";
 import {
   InteractiveBuilder,
   blankButtonsPayload,
+  type BuilderPayload,
 } from "@/components/interactive/interactive-builder";
 import { validateInteractivePayload } from "@/lib/whatsapp/interactive";
 import type { InteractiveMessagePayload, QuickReply } from "@/types";
@@ -151,7 +152,7 @@ export function MessageComposer({
   // Interactive-message builder dialog + quick-reply picker.
   const [interactiveOpen, setInteractiveOpen] = useState(false);
   const [interactivePayload, setInteractivePayload] =
-    useState<InteractiveMessagePayload>(blankButtonsPayload);
+    useState<BuilderPayload>(blankButtonsPayload);
   const [savingQuickReply, setSavingQuickReply] = useState(false);
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
 
@@ -302,7 +303,13 @@ export function MessageComposer({
 
   const openInteractiveBuilder = useCallback(
     (seed?: InteractiveMessagePayload) => {
-      setInteractivePayload(seed ?? blankButtonsPayload());
+      // This dialog only edits buttons/list payloads. A quick reply
+      // saved as a location-request (not offered by this UI, but not
+      // impossible via direct API/script insert) falls back to a
+      // blank buttons payload rather than crashing the builder.
+      const safeSeed =
+        seed && seed.kind !== "location_request" ? seed : blankButtonsPayload();
+      setInteractivePayload(safeSeed);
       setInteractiveOpen(true);
     },
     [],

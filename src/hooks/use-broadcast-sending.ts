@@ -8,7 +8,7 @@ import {
   batchRetryDelayMs,
 } from '@/lib/broadcast-retry';
 import { normalizeKey } from '@/lib/contacts/dedupe';
-import { fetchAllRows } from '@/lib/supabase/paginate';
+import { fetchAllRows, fetchRowsByIds } from '@/lib/supabase/paginate';
 import { Contact, MessageTemplate } from '@/types';
 
 export type CustomFieldOperator = 'is' | 'is_not' | 'contains';
@@ -189,8 +189,8 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
         const uniqueContactIds = [
           ...new Set(contactTags.map((ct) => ct.contact_id)),
         ];
-        contacts = await fetchAllRows<Contact>((from, to) =>
-          supabase.from('contacts').select('*').in('id', uniqueContactIds).range(from, to),
+        contacts = await fetchRowsByIds<Contact>(uniqueContactIds, (chunk) =>
+          supabase.from('contacts').select('*').in('id', chunk),
         );
       }
     } else if (audience.type === 'custom_field' && audience.customField) {
@@ -335,8 +335,8 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
     const contactIds = [...new Set(matches.map((m) => m.contact_id))];
     if (contactIds.length === 0) return [];
 
-    return fetchAllRows<Contact>((from, to) =>
-      supabase.from('contacts').select('*').in('id', contactIds).range(from, to),
+    return fetchRowsByIds<Contact>(contactIds, (chunk) =>
+      supabase.from('contacts').select('*').in('id', chunk),
     );
   }
 

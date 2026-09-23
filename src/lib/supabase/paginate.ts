@@ -33,3 +33,30 @@ export async function fetchAllRows<T>(
   }
   return rows
 }
+
+const ID_CHUNK_SIZE = 200
+
+/**
+ * Fetch rows matching a large set of ids, chunked to keep each request's
+ * `.in()` filter small.
+ *
+ * A single `.in('id', ids)` with a few thousand UUIDs builds a query
+ * string tens of KB long (2,510 UUIDs ≈ 93KB) — large enough that the
+ * request fails at the transport level (`TypeError: Failed to fetch` in
+ * the browser, `TypeError: fetch failed` in Node), not with a graceful
+ * HTTP error. This is exactly what an audience this large hits once
+ * `fetchAllRows` above correctly stops under-counting it.
+ */
+export async function fetchRowsByIds<T>(
+  ids: string[],
+  build: (chunk: string[]) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = []
+  for (let i = 0; i < ids.length; i += ID_CHUNK_SIZE) {
+    const chunk = ids.slice(i, i + ID_CHUNK_SIZE)
+    const { data, error } = await build(chunk)
+    if (error) throw new Error(error.message)
+    rows.push(...(data ?? []))
+  }
+  return rows
+}

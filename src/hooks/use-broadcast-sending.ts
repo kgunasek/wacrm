@@ -8,6 +8,7 @@ import {
   batchRetryDelayMs,
 } from '@/lib/broadcast-retry';
 import { normalizeKey } from '@/lib/contacts/dedupe';
+import { fetchAllRows } from '@/lib/supabase/paginate';
 import { Contact, MessageTemplate } from '@/types';
 
 export type CustomFieldOperator = 'is' | 'is_not' | 'contains';
@@ -168,32 +169,29 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
     let contacts: Contact[] = [];
 
     if (audience.type === 'all') {
-      const { data, error } = await supabase.from('contacts').select('*');
-      if (error) throw new Error(`Failed to fetch contacts: ${error.message}`);
-      contacts = data ?? [];
+      contacts = await fetchAllRows<Contact>((from, to) =>
+        supabase.from('contacts').select('*').range(from, to),
+      );
     } else if (
       audience.type === 'tags' &&
       audience.tagIds &&
       audience.tagIds.length > 0
     ) {
-      const { data: contactTags, error: tagError } = await supabase
-        .from('contact_tags')
-        .select('contact_id')
-        .in('tag_id', audience.tagIds);
+      const contactTags = await fetchAllRows<{ contact_id: string }>((from, to) =>
+        supabase
+          .from('contact_tags')
+          .select('contact_id')
+          .in('tag_id', audience.tagIds!)
+          .range(from, to),
+      );
 
-      if (tagError)
-        throw new Error(`Failed to fetch contact tags: ${tagError.message}`);
-
-      if (contactTags && contactTags.length > 0) {
+      if (contactTags.length > 0) {
         const uniqueContactIds = [
           ...new Set(contactTags.map((ct) => ct.contact_id)),
         ];
-        const { data, error } = await supabase
-          .from('contacts')
-          .select('*')
-          .in('id', uniqueContactIds);
-        if (error) throw new Error(`Failed to fetch contacts: ${error.message}`);
-        contacts = data ?? [];
+        contacts = await fetchAllRows<Contact>((from, to) =>
+          supabase.from('contacts').select('*').in('id', uniqueContactIds).range(from, to),
+        );
       }
     } else if (audience.type === 'custom_field' && audience.customField) {
       contacts = await resolveCustomFieldAudience(supabase, audience.customField);
@@ -204,11 +202,14 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
     // Apply exclude tags (works across all contact-derived audience
     // types). CSV contacts are synthetic so exclusion doesn't apply.
     if (audience.excludeTagIds && audience.excludeTagIds.length > 0) {
-      const { data: excludeRows } = await supabase
-        .from('contact_tags')
-        .select('contact_id')
-        .in('tag_id', audience.excludeTagIds);
-      const excludedIds = new Set((excludeRows ?? []).map((r) => r.contact_id));
+      const excludeRows = await fetchAllRows<{ contact_id: string }>((from, to) =>
+        supabase
+          .from('contact_tags')
+          .select('contact_id')
+          .in('tag_id', audience.excludeTagIds!)
+          .range(from, to),
+      );
+      const excludedIds = new Set(excludeRows.map((r) => r.contact_id));
       contacts = contacts.filter((c) => !excludedIds.has(c.id));
     }
 
@@ -320,28 +321,23 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
     // Build the WHERE clause for the operator. PostgREST supports
     // eq/neq/ilike via the query builder — use ilike with wildcards
     // for "contains" so the match is case-insensitive.
-    let query = supabase
-      .from('contact_custom_values')
-      .select('contact_id')
-      .eq('custom_field_id', fieldId);
+    const matches = await fetchAllRows<{ contact_id: string }>((from, to) => {
+      let query = supabase
+        .from('contact_custom_values')
+        .select('contact_id')
+        .eq('custom_field_id', fieldId);
+      if (operator === 'is') query = query.eq('value', value);
+      else if (operator === 'is_not') query = query.neq('value', value);
+      else if (operator === 'contains') query = query.ilike('value', `%${value}%`);
+      return query.range(from, to);
+    });
 
-    if (operator === 'is') query = query.eq('value', value);
-    else if (operator === 'is_not') query = query.neq('value', value);
-    else if (operator === 'contains') query = query.ilike('value', `%${value}%`);
-
-    const { data: matches, error: matchErr } = await query;
-    if (matchErr)
-      throw new Error(`Custom-field filter failed: ${matchErr.message}`);
-
-    const contactIds = [...new Set((matches ?? []).map((m) => m.contact_id))];
+    const contactIds = [...new Set(matches.map((m) => m.contact_id))];
     if (contactIds.length === 0) return [];
 
-    const { data, error } = await supabase
-      .from('contacts')
-      .select('*')
-      .in('id', contactIds);
-    if (error) throw new Error(`Failed to fetch contacts: ${error.message}`);
-    return data ?? [];
+    return fetchAllRows<Contact>((from, to) =>
+      supabase.from('contacts').select('*').in('id', contactIds).range(from, to),
+    );
   }
 
   async function createAndSendBroadcast(payload: BroadcastPayload): Promise<string> {

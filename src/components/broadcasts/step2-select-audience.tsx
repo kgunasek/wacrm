@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/paginate';
 import { parseBroadcastCsv } from '@/lib/broadcast-csv';
 import { CustomField, Tag } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -155,26 +156,31 @@ export function Step2SelectAudience({
         audience.tagIds &&
         audience.tagIds.length > 0
       ) {
-        const { data } = await supabase
-          .from('contact_tags')
-          .select('contact_id')
-          .in('tag_id', audience.tagIds);
-        baseIds = new Set((data ?? []).map((r) => r.contact_id));
+        const data = await fetchAllRows<{ contact_id: string }>((from, to) =>
+          supabase
+            .from('contact_tags')
+            .select('contact_id')
+            .in('tag_id', audience.tagIds!)
+            .range(from, to),
+        );
+        baseIds = new Set(data.map((r) => r.contact_id));
       } else if (
         audience.type === 'custom_field' &&
         audience.customField?.fieldId &&
         audience.customField.value
       ) {
         const { fieldId, operator, value } = audience.customField;
-        let q = supabase
-          .from('contact_custom_values')
-          .select('contact_id')
-          .eq('custom_field_id', fieldId);
-        if (operator === 'is') q = q.eq('value', value);
-        else if (operator === 'is_not') q = q.neq('value', value);
-        else q = q.ilike('value', `%${value}%`);
-        const { data } = await q;
-        baseIds = new Set((data ?? []).map((r) => r.contact_id));
+        const data = await fetchAllRows<{ contact_id: string }>((from, to) => {
+          let q = supabase
+            .from('contact_custom_values')
+            .select('contact_id')
+            .eq('custom_field_id', fieldId);
+          if (operator === 'is') q = q.eq('value', value);
+          else if (operator === 'is_not') q = q.neq('value', value);
+          else q = q.ilike('value', `%${value}%`);
+          return q.range(from, to);
+        });
+        baseIds = new Set(data.map((r) => r.contact_id));
       } else if (
         audience.type === 'csv' &&
         audience.csvContacts &&
@@ -191,11 +197,14 @@ export function Step2SelectAudience({
       // Apply exclude tags
       let excludeSet: Set<string> | null = null;
       if (audience.excludeTagIds && audience.excludeTagIds.length > 0) {
-        const { data: excludeRows } = await supabase
-          .from('contact_tags')
-          .select('contact_id')
-          .in('tag_id', audience.excludeTagIds);
-        excludeSet = new Set((excludeRows ?? []).map((r) => r.contact_id));
+        const excludeRows = await fetchAllRows<{ contact_id: string }>((from, to) =>
+          supabase
+            .from('contact_tags')
+            .select('contact_id')
+            .in('tag_id', audience.excludeTagIds!)
+            .range(from, to),
+        );
+        excludeSet = new Set(excludeRows.map((r) => r.contact_id));
       }
 
       if (baseIds) {

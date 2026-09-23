@@ -717,7 +717,8 @@
       "retryFailed": "Reintentar fallidos ({count})",
       "toastResumeStarted": "Enviando a {count} destinatarios en segundo plano.",
       "toastResumeStartedCapped": "Enviando a {count} destinatarios en segundo plano. Otros {remaining} necesitarán otra ejecución.",
-      "toastResumeFailed": "No se pudo reanudar: {error}"
+      "toastResumeFailed": "No se pudo reanudar: {error}",
+      "continueDraft": "Continuar borrador"
     },
     "new": {
       "title": "Nueva difusión",
@@ -732,7 +733,9 @@
       "toastNotSignedIn": "No has iniciado sesión.",
       "toastNotLinked": "Tu perfil no está vinculado a una cuenta.",
       "toastFailedDraft": "Error al guardar el borrador: {error}",
-      "toastDraftSaved": "Borrador guardado"
+      "toastDraftSaved": "Borrador guardado",
+      "toastDraftLoadFailed": "No se pudo cargar el borrador.",
+      "toastDraftTemplateMissing": "La plantilla de este borrador ya no existe; selecciona otra."
     },
     "wizard": {
       "next": "Siguiente",

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
@@ -21,13 +21,28 @@ const steps = [
   { label: 'send', key: 'send' },
 ] as const;
 
+// `useSearchParams` (for `?draftId=`) opts this page out of static
+// prerendering unless it sits under a Suspense boundary — same reason
+// as settings/page.tsx. A thin wrapper supplies the boundary; the inner
+// component reads the query string.
 export default function NewBroadcastPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewBroadcastPageInner />
+    </Suspense>
+  );
+}
+
+function NewBroadcastPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const draftId = searchParams.get('draftId');
   const t = useTranslations('Broadcasts.new');
   const { accountId } = useAuth();
   const { createAndSendBroadcast, isProcessing, progress } = useBroadcastSending();
 
   const [currentStep, setCurrentStep] = useState(0);
+  const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
   const [template, setTemplate] = useState<MessageTemplate | null>(null);
   const [audience, setAudience] = useState<{
     type: 'all' | 'tags' | 'custom_field' | 'csv';
@@ -46,6 +61,63 @@ export default function NewBroadcastPage() {
   const [headerMediaUrl, setHeaderMediaUrl] = useState('');
   const [name, setName] = useState('');
 
+  // Reopen a saved draft (?draftId=...) pre-filled into the wizard.
+  // Save Draft only persists name/template_name+language/audience
+  // type+tagIds/template_variables — enough to reconstruct the
+  // template + audience + variables, but not a CSV upload or custom-field
+  // filter (those weren't saved). Jumps straight to Personalize since
+  // template + audience are already resolved.
+  useEffect(() => {
+    if (!draftId) return;
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const { data: draft, error } = await supabase
+        .from('broadcasts')
+        .select('*')
+        .eq('id', draftId)
+        .eq('status', 'draft')
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !draft) {
+        toast.error(t('toastDraftLoadFailed'));
+        return;
+      }
+
+      const { data: templateRow } = await supabase
+        .from('message_templates')
+        .select('*')
+        .eq('name', draft.template_name)
+        .eq('language', draft.template_language ?? 'en_US')
+        .maybeSingle();
+      if (cancelled) return;
+      if (!templateRow) {
+        toast.error(t('toastDraftTemplateMissing'));
+        return;
+      }
+
+      setName(draft.name ?? '');
+      setTemplate(templateRow as MessageTemplate);
+      const filter = (draft.audience_filter ?? {}) as {
+        type?: 'all' | 'tags' | 'custom_field' | 'csv';
+        tagIds?: string[];
+      };
+      setAudience({
+        type: filter.type ?? 'all',
+        tagIds: filter.tagIds,
+      });
+      setVariables(
+        (draft.template_variables as typeof variables) ?? {},
+      );
+      setLoadedDraftId(draft.id);
+      setCurrentStep(2);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId]);
+
   async function handleSend() {
     if (!template) return;
 
@@ -63,6 +135,14 @@ export default function NewBroadcastPage() {
         variables,
         headerMediaUrl,
       });
+      // Sent successfully from a loaded draft — drop the now-redundant
+      // draft row so it doesn't linger as a stale duplicate in the list.
+      // Best-effort: a failure here shouldn't block navigation to the
+      // broadcast that DID send.
+      if (loadedDraftId) {
+        const supabase = createClient();
+        await supabase.from('broadcasts').delete().eq('id', loadedDraftId);
+      }
       router.push(`/broadcasts/${broadcastId}`);
     } catch (err) {
       // Previously swallowed with console.error — the wizard would

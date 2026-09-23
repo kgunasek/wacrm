@@ -365,6 +365,21 @@ export default function BroadcastDetailPage() {
           </div>
         </div>
 
+        {/* Continue — a draft has no recipients yet (Save Draft only
+            persists name/template/audience type). Reopens the wizard
+            pre-filled from this row so the user can review and
+            actually send, instead of the draft being a dead end. */}
+        <div className="flex items-center gap-2">
+        {broadcast.status === 'draft' && !confirmDelete && (
+          <Button
+            size="sm"
+            onClick={() => router.push(`/broadcasts/new?draftId=${broadcast.id}`)}
+            className="gap-1.5"
+          >
+            <PlayCircle className="h-3.5 w-3.5" />
+            {t('continueDraft')}
+          </Button>
+        )}
         {/* Delete — inline-confirm pattern matches the pipeline-settings
             "Delete Pipeline" flow. Mid-send broadcasts can't be deleted
             because orphaning in-flight Meta messages would leave the
@@ -407,6 +422,7 @@ export default function BroadcastDetailPage() {
             {t('delete')}
           </Button>
         )}
+        </div>
       </div>
 
       {/* Resume / retry (issue #472). Only rendered when there is

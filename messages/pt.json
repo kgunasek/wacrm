@@ -717,7 +717,8 @@
       "retryFailed": "Tentar novamente os que falharam ({count})",
       "toastResumeStarted": "Enviando para {count} destinatários em segundo plano.",
       "toastResumeStartedCapped": "Enviando para {count} destinatários em segundo plano. Outros {remaining} precisarão de mais uma execução.",
-      "toastResumeFailed": "Não foi possível retomar: {error}"
+      "toastResumeFailed": "Não foi possível retomar: {error}",
+      "continueDraft": "Continuar rascunho"
     },
     "new": {
       "title": "Novo disparo",
@@ -732,7 +733,9 @@
       "toastNotSignedIn": "Você não está conectado.",
       "toastNotLinked": "Seu perfil não está vinculado a uma conta.",
       "toastFailedDraft": "Falha ao salvar o rascunho: {error}",
-      "toastDraftSaved": "Rascunho salvo"
+      "toastDraftSaved": "Rascunho salvo",
+      "toastDraftLoadFailed": "Falha ao carregar o rascunho.",
+      "toastDraftTemplateMissing": "O modelo deste rascunho não existe mais — selecione outro."
     },
     "wizard": {
       "next": "Avançar",

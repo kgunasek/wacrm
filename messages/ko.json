@@ -717,7 +717,8 @@
       "retryFailed": "실패 재시도 ({count})",
       "toastResumeStarted": "{count}명에게 백그라운드로 발송 중입니다.",
       "toastResumeStartedCapped": "{count}명에게 백그라운드로 발송 중입니다. 나머지 {remaining}명은 한 번 더 실행해야 합니다.",
-      "toastResumeFailed": "이어서 발송할 수 없습니다: {error}"
+      "toastResumeFailed": "이어서 발송할 수 없습니다: {error}",
+      "continueDraft": "임시저장 이어하기"
     },
     "new": {
       "title": "새 브로드캐스트",
@@ -732,7 +733,9 @@
       "toastNotSignedIn": "로그인되어 있지 않습니다.",
       "toastNotLinked": "프로필이 계정에 연결되어 있지 않습니다.",
       "toastFailedDraft": "초안 저장 실패: {error}",
-      "toastDraftSaved": "초안이 저장되었습니다"
+      "toastDraftSaved": "초안이 저장되었습니다",
+      "toastDraftLoadFailed": "임시저장을 불러오지 못했습니다.",
+      "toastDraftTemplateMissing": "이 임시저장의 템플릿이 더 이상 존재하지 않습니다 — 다시 선택하세요."
     },
     "wizard": {
       "next": "다음",

@@ -4,6 +4,7 @@ import { sendTemplateMessage } from '@/lib/whatsapp/meta-api'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import type { SendTimeParams } from '@/lib/whatsapp/template-send-builder'
 import { resolveTemplateRow } from '@/lib/whatsapp/template-body'
+import { recordBroadcastMessage } from '@/lib/whatsapp/broadcast-message-mirror'
 import {
   sanitizePhoneForMeta,
   isValidE164,
@@ -56,6 +57,14 @@ interface NewRecipient {
    * sendTemplateMessage for the merge rules.
    */
   messageParams?: SendTimeParams
+  /**
+   * contacts.id, when the caller has one (the dashboard wizard always
+   * does — it resolves the audience to contact rows before sending).
+   * Lets a successful send be mirrored into `messages` so a later
+   * reaction or reply has a local row to attach to. Omitted entirely
+   * this endpoint still sends fine; it just can't mirror.
+   */
+  contact_id?: string
 }
 
 export async function POST(request: Request) {
@@ -64,14 +73,18 @@ export async function POST(request: Request) {
     // explicit that running broadcasts is a write operation and that
     // viewers are read-only.
     //
-    // This endpoint writes NOTHING to the database: it reads the config
-    // and template, then calls Meta directly. So unlike the rest of the
-    // app there was no RLS policy backstopping a missing role check —
-    // resolving `account_id` straight off the profile (which only needs
-    // 'viewer') was the ONLY gate, and it let a viewer blast a template
-    // to arbitrary phone numbers from the account's WhatsApp number.
-    // Nothing about that is recoverable after the fact, so the check has
-    // to happen here.
+    // This endpoint's own job is calling Meta directly, not writing to
+    // the database — it only reads the config and template before that
+    // call. (It does now best-effort mirror a successful send into
+    // `messages`/`conversations` when the caller passes a contact_id,
+    // but that's incidental bookkeeping, not this route's purpose, and
+    // a failure there is swallowed rather than surfaced.) So unlike the
+    // rest of the app there was no RLS policy backstopping a missing
+    // role check — resolving `account_id` straight off the profile
+    // (which only needs 'viewer') was the ONLY gate, and it let a
+    // viewer blast a template to arbitrary phone numbers from the
+    // account's WhatsApp number. Nothing about that is recoverable
+    // after the fact, so the check has to happen here.
     const { supabase, accountId, userId } = await requireRole('agent')
 
     // Per-user broadcast budget. Note: this limits how often a user
@@ -217,6 +230,18 @@ export async function POST(request: Request) {
           whatsapp_message_id: sentMessageId,
         })
         sentCount++
+
+        if (recipient.contact_id) {
+          await recordBroadcastMessage(supabase, {
+            accountId,
+            contactId: recipient.contact_id,
+            ownerUserId: config.user_id,
+            templateName: template_name,
+            templateRow,
+            bodyParams: recipient.params ?? [],
+            whatsappMessageId: sentMessageId,
+          })
+        }
       } else {
         console.error(
           `Failed to send broadcast to ${recipient.phone}:`,

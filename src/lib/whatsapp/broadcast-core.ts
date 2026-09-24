@@ -28,6 +28,7 @@ import {
 import { resolveTemplateRow } from '@/lib/whatsapp/template-body';
 import type { MessageTemplate } from '@/types';
 import { findOrCreateContact } from '@/lib/api/v1/contacts';
+import { recordBroadcastMessage } from '@/lib/whatsapp/broadcast-message-mirror';
 
 /** Thrown by createBroadcast on a caller-visible failure; route maps it. */
 export class BroadcastError extends Error {
@@ -57,12 +58,18 @@ export interface CreateBroadcastParams {
 
 interface PlannedRecipient {
   recipientRowId: string;
+  /** For mirroring the sent message into `messages` (issue: reactions
+   *  and replies to a broadcast had no local message to attach to). */
+  contactId: string;
   phone: string;
   params: string[];
 }
 
 export interface BroadcastPlan {
   broadcastId: string;
+  accountId: string;
+  /** Audit user for the mirrored conversation, if one must be created. */
+  ownerUserId: string;
   templateName: string;
   templateLanguage: string;
   phoneNumberId: string;
@@ -229,12 +236,19 @@ export async function createBroadcast(
   const planned: PlannedRecipient[] = createdRows.map(
     (row: { recipient_id: string; contact_id: string }) => {
       const r = byContact.get(row.contact_id)!;
-      return { recipientRowId: row.recipient_id, phone: r.phone, params: r.params };
+      return {
+        recipientRowId: row.recipient_id,
+        contactId: row.contact_id,
+        phone: r.phone,
+        params: r.params,
+      };
     }
   );
 
   return {
     broadcastId,
+    accountId,
+    ownerUserId: auditUserId,
     templateName,
     templateLanguage: resolvedTemplate.language,
     phoneNumberId: config.phone_number_id,
@@ -339,6 +353,18 @@ export async function deliverBroadcast(
           error_message: null,
         })
         .eq('id', recipient.recipientRowId);
+
+      // Best-effort: never lets a DB hiccup here turn a message Meta
+      // already accepted into one this loop reports as failed.
+      await recordBroadcastMessage(db, {
+        accountId: plan.accountId,
+        contactId: recipient.contactId,
+        ownerUserId: plan.ownerUserId,
+        templateName: plan.templateName,
+        templateRow: plan.templateRow,
+        bodyParams: recipient.params,
+        whatsappMessageId: sentMessageId,
+      });
     } else {
       failed++;
       await db

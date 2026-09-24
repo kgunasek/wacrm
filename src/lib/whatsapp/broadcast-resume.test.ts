@@ -170,7 +170,7 @@ const BROADCAST = {
   template_language: 'en_US',
 };
 
-const CONFIG = { phone_number_id: 'pn-1', access_token: 'tok' };
+const CONFIG = { phone_number_id: 'pn-1', access_token: 'tok', user_id: 'owner-1' };
 
 function recipient(
   id: string,
@@ -180,7 +180,7 @@ function recipient(
   return {
     id,
     template_params: params,
-    contact: phone ? { phone } : null,
+    contact: phone ? { id: `contact-${id}`, phone } : null,
   };
 }
 
@@ -211,15 +211,19 @@ describe('planBroadcastResume', () => {
     expect(plan.planned).toEqual([
       {
         recipientRowId: 'r1',
+        contactId: 'contact-r1',
         phone: '15551234567',
         params: ['A123', 'Friday'],
       },
       {
         recipientRowId: 'r2',
+        contactId: 'contact-r2',
         phone: '15559876543',
         params: ['B456', 'Monday'],
       },
     ]);
+    expect(plan.accountId).toBe('acct-1');
+    expect(plan.ownerUserId).toBe('owner-1');
     expect(plan.accessToken).toBe('decrypted:tok');
     expect(remaining).toBe(0);
     expect(unsendable).toBe(0);

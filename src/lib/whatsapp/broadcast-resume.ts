@@ -118,13 +118,21 @@ export interface ResumePlan {
 interface RecipientRow {
   id: string;
   template_params: unknown;
-  contact: { phone?: string | null } | { phone?: string | null }[] | null;
+  contact:
+    | { id: string; phone?: string | null }
+    | { id: string; phone?: string | null }[]
+    | null;
 }
 
 /** Supabase renders an embedded to-one join as an object or a 1-array. */
 function contactPhone(row: RecipientRow): string | null {
   const c = Array.isArray(row.contact) ? row.contact[0] : row.contact;
   return c?.phone ?? null;
+}
+
+function contactId(row: RecipientRow): string | null {
+  const c = Array.isArray(row.contact) ? row.contact[0] : row.contact;
+  return c?.id ?? null;
 }
 
 /**
@@ -158,7 +166,7 @@ export async function planBroadcastResume(
   const statuses = scopeStatuses(scope);
   const { data: rawRows, error: recError } = await db
     .from('broadcast_recipients')
-    .select('id, template_params, contact:contacts(phone)')
+    .select('id, template_params, contact:contacts(id, phone)')
     .eq('broadcast_id', broadcastId)
     .in('status', statuses)
     // Oldest first, so repeated capped passes chew through the backlog
@@ -234,6 +242,8 @@ export async function planBroadcastResume(
 
   const plan: BroadcastPlan = {
     broadcastId,
+    accountId,
+    ownerUserId: config.user_id,
     templateName: broadcast.template_name,
     templateLanguage: resolvedTemplate.language,
     phoneNumberId: config.phone_number_id,
@@ -241,6 +251,10 @@ export async function planBroadcastResume(
     templateRow: resolvedTemplate.row,
     planned: slice.map((row) => ({
       recipientRowId: row.id,
+      // Safe: every row here already passed the isValidE164 filter
+      // above, which requires a contact with a phone — and the phone
+      // came off this same embedded contact, so it always has an id.
+      contactId: contactId(row)!,
       phone: sanitizePhoneForMeta(contactPhone(row) ?? ''),
       params: Array.isArray(row.template_params)
         ? row.template_params.filter((p): p is string => typeof p === 'string')

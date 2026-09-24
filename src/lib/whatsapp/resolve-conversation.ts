@@ -160,8 +160,14 @@ export async function resolveConversationByPhone(
  * `(accountId, contactId)`. Handles the unique-index race the same way
  * the inbound webhook does: on a 23505 from a concurrent create,
  * re-resolve the winning row rather than failing the send.
+ *
+ * Exported separately from {@link resolveConversationByPhone} for
+ * callers that already have a `contactId` in hand — a broadcast, for
+ * one, which resolves recipients to contacts long before it sends —
+ * and so have no reason to pay for the phone-based contact lookup
+ * above it.
  */
-async function findOrCreateConversationRow(
+export async function findOrCreateConversationRow(
   db: SupabaseClient,
   accountId: string,
   contactId: string,

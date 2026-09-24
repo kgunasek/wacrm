@@ -496,6 +496,10 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
             // Read back off the row rather than re-resolved, so this
             // pass and any later resume send identical params.
             params: Array.isArray(r.template_params) ? r.template_params : [],
+            // Lets the route mirror the sent message into `messages`,
+            // so a customer reacting to or replying to this broadcast
+            // has a local row to attach to.
+            contact_id: r.contact_id,
             ...(messageParams ? { messageParams } : {}),
           }));
 

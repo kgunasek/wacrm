@@ -41,6 +41,19 @@ import {
 // The fan-out below is sequential over up to 1 000 recipients.
 export const maxDuration = 300;
 
+/**
+ * How long the fan-out may run before it stops of its own accord,
+ * leaving the rest for another pass.
+ *
+ * Comfortably inside `maxDuration` so the pass finishes on its own
+ * terms. That matters more than the recipient cap: when the host kills
+ * the function instead, the `finally` that releases the delivery lock
+ * never runs, and the campaign is then locked out of resuming for the
+ * full DELIVERY_LOCK_STALE_MS window — 30 minutes of nothing happening,
+ * which is exactly the failure this endpoint exists to prevent.
+ */
+const RESUME_BUDGET_MS = 240_000;
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -98,7 +111,15 @@ export async function POST(
     const admin = supabaseAdmin();
     after(async () => {
       try {
-        await deliverBroadcast(admin, plan);
+        const result = await deliverBroadcast(admin, plan, {
+          budgetMs: RESUME_BUDGET_MS,
+        });
+        if (result.stoppedEarly) {
+          console.warn(
+            `[broadcast-resume] ${id}: budget spent after ${result.sent + result.failed}, ` +
+              `${result.unattempted} left for the next pass`
+          );
+        }
       } catch (err) {
         console.error(
           '[broadcast-resume] delivery threw:',

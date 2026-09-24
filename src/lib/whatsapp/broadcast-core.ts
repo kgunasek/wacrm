@@ -245,6 +245,28 @@ export async function createBroadcast(
   };
 }
 
+export interface DeliverBroadcastOptions {
+  /**
+   * Wall-clock budget for the whole pass. The loop stops between
+   * recipients once it is spent, leaving the rest `pending` for another
+   * pass. Omitted means "run to completion" — right for a caller that
+   * planned a small batch, wrong for one working a long backlog inside
+   * a function the host will eventually kill.
+   */
+  budgetMs?: number;
+  /** Injectable clock, so the budget is testable without real waiting. */
+  now?: () => number;
+}
+
+export interface DeliverBroadcastResult {
+  sent: number;
+  failed: number;
+  /** True when the budget ran out before the plan did. */
+  stoppedEarly: boolean;
+  /** Planned recipients the pass never got to; still `pending`. */
+  unattempted: number;
+}
+
 /**
  * Fan out a {@link BroadcastPlan}: send each recipient's template
  * (phone-variant retry) and stamp its `broadcast_recipients` row.
@@ -260,9 +282,26 @@ export async function createBroadcast(
  */
 export async function deliverBroadcast(
   db: SupabaseClient,
-  plan: BroadcastPlan
-): Promise<void> {
+  plan: BroadcastPlan,
+  options: DeliverBroadcastOptions = {}
+): Promise<DeliverBroadcastResult> {
+  const { budgetMs, now = () => Date.now() } = options;
+  const startedAt = now();
+  let sent = 0;
+  let failed = 0;
+  let stoppedEarly = false;
+
   for (const recipient of plan.planned) {
+    // Stop while we still have time to tidy up. A host that kills the
+    // function mid-loop skips the caller's `finally`, which is how a
+    // delivery lock survives a dead pass and wedges the campaign for
+    // the full staleness window — so bowing out voluntarily is what
+    // keeps Resume clickable straight away.
+    if (budgetMs !== undefined && now() - startedAt >= budgetMs) {
+      stoppedEarly = true;
+      break;
+    }
+
     const variants = phoneVariants(recipient.phone);
     let sentMessageId: string | null = null;
     let lastError: string | null = null;
@@ -290,6 +329,7 @@ export async function deliverBroadcast(
     }
 
     if (sentMessageId) {
+      sent++;
       await db
         .from('broadcast_recipients')
         .update({
@@ -300,6 +340,7 @@ export async function deliverBroadcast(
         })
         .eq('id', recipient.recipientRowId);
     } else {
+      failed++;
       await db
         .from('broadcast_recipients')
         .update({
@@ -310,7 +351,17 @@ export async function deliverBroadcast(
     }
   }
 
+  // Safe to call after a partial pass: it derives the terminal status
+  // from the recipient rows, so anything still pending keeps the
+  // broadcast in 'sending' rather than declaring it done.
   await finalizeBroadcastStatus(db, plan.broadcastId);
+
+  return {
+    sent,
+    failed,
+    stoppedEarly,
+    unattempted: plan.planned.length - sent - failed,
+  };
 }
 
 /**

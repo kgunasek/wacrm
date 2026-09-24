@@ -2,8 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   createBroadcast,
+  deliverBroadcast,
   finalizeBroadcastStatus,
   BroadcastError,
+  type BroadcastPlan,
 } from './broadcast-core';
 
 // Contact resolution and token decryption are exercised elsewhere — stub
@@ -13,6 +15,9 @@ vi.mock('@/lib/whatsapp/encryption', () => ({
 }));
 vi.mock('@/lib/api/v1/contacts', () => ({
   findOrCreateContact: vi.fn(async () => ({ id: 'c1' })),
+}));
+vi.mock('@/lib/whatsapp/meta-api', () => ({
+  sendTemplateMessage: vi.fn(async () => ({ messageId: 'wamid.ok' })),
 }));
 
 // These assertions all fire in the pure validation prologue, before
@@ -250,5 +255,91 @@ describe('finalizeBroadcastStatus', () => {
       'b-1',
     );
     expect(writes.update?.status).toBe('sent');
+  });
+});
+
+// ============================================================
+// Time-budgeted delivery. A resume pass runs inside `after()`, so the
+// host kills it once the function's limit is up — and a killed process
+// skips the caller's `finally`, stranding the delivery lock. The lock
+// then blocks every retry for its full staleness window. Stopping on
+// our own terms is what keeps the campaign resumable.
+// ============================================================
+
+function deliveryDb(updates: Record<string, unknown>[]) {
+  return {
+    from() {
+      const b: Record<string, unknown> = {
+        select: () => b,
+        update: (row: Record<string, unknown>) => {
+          updates.push(row);
+          return b;
+        },
+        eq: () => b,
+        // Serves the recipient-row updates and finalizeBroadcastStatus's
+        // counts alike; a non-zero `pending` keeps it in 'sending'.
+        then: (resolve: (r: { count: number; error: null }) => unknown) =>
+          resolve({ count: 1, error: null }),
+      };
+      return b;
+    },
+  } as unknown as SupabaseClient;
+}
+
+function planOf(n: number): BroadcastPlan {
+  return {
+    broadcastId: 'b-1',
+    templateName: 'tpl',
+    templateLanguage: 'en',
+    phoneNumberId: 'pn-1',
+    accessToken: 'token',
+    templateRow: null,
+    planned: Array.from({ length: n }, (_, i) => ({
+      recipientRowId: `r-${i}`,
+      phone: '+15550000000',
+      params: [],
+    })),
+    rejected: [],
+  } as unknown as BroadcastPlan;
+}
+
+describe('deliverBroadcast time budget', () => {
+  it('stops once the budget is spent, leaving the rest pending', async () => {
+    const updates: Record<string, unknown>[] = [];
+    // Each read of the clock advances 10s. The first is consumed by
+    // `startedAt` (0s), so the loop's checks read 10s, 20s, 30s — the
+    // first two fit the 25s budget, the third does not.
+    let clock = -10_000;
+    const result = await deliverBroadcast(deliveryDb(updates), planOf(50), {
+      budgetMs: 25_000,
+      now: () => (clock += 10_000),
+    });
+
+    expect(result.stoppedEarly).toBe(true);
+    expect(result.sent).toBe(2);
+    expect(result.unattempted).toBe(48);
+    // Crucially the other 48 were never stamped, so they stay 'pending'
+    // and the next pass picks them up — nobody is messaged twice.
+    expect(updates).toHaveLength(2);
+  });
+
+  it('runs the whole plan when the budget is ample', async () => {
+    const updates: Record<string, unknown>[] = [];
+    const result = await deliverBroadcast(deliveryDb(updates), planOf(5), {
+      budgetMs: 10_000,
+      now: () => 0,
+    });
+
+    expect(result.stoppedEarly).toBe(false);
+    expect(result.sent).toBe(5);
+    expect(result.unattempted).toBe(0);
+  });
+
+  it('runs to completion when no budget is given', async () => {
+    const updates: Record<string, unknown>[] = [];
+    const result = await deliverBroadcast(deliveryDb(updates), planOf(7));
+
+    expect(result.stoppedEarly).toBe(false);
+    expect(result.sent).toBe(7);
   });
 });

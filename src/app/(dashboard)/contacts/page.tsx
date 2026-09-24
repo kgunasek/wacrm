@@ -147,54 +147,29 @@ export default function ContactsPage() {
     setSelected(new Set());
 
     const from = page * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
     const term = search.trim();
 
-    let contactRows: Contact[];
-    let count: number;
-
-    if (selectedTagIds.length > 0) {
-      // Tag filter active — resolve it server-side (join + distinct +
-      // windowed total count + pagination) so a tag covering many
-      // contacts can't silently truncate the result or overflow an IN
-      // clause. See migration 025_filter_contacts_by_tags.
-      const { data, error } = await supabase.rpc('filter_contacts_by_tags', {
-        p_tag_ids: selectedTagIds,
-        p_search: term || null,
-        p_limit: PAGE_SIZE,
-        p_offset: from,
-      });
-      if (seq !== fetchSeq.current) return; // superseded by a newer fetch
-      if (error) {
-        toast.error(t('toastFailedLoad'));
-        setLoading(false);
-        return;
-      }
-      const rows = (data ?? []) as { contact: Contact; total_count: number }[];
-      contactRows = rows.map((r) => r.contact);
-      count = rows.length > 0 ? Number(rows[0].total_count) : 0;
-    } else {
-      let query = supabase
-        .from('contacts')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (term) {
-        const like = `%${term}%`;
-        query = query.or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like}`);
-      }
-
-      const { data, count: exactCount, error } = await query;
-      if (seq !== fetchSeq.current) return; // superseded by a newer fetch
-      if (error) {
-        toast.error(t('toastFailedLoad'));
-        setLoading(false);
-        return;
-      }
-      contactRows = data ?? [];
-      count = exactCount ?? 0;
+    // One server-side path for both the filtered and unfiltered list
+    // (migration 044). It does the tag match, the search, the windowed
+    // total count and the pagination in a single query — which is what
+    // lets the search reach custom-field values like the consumer
+    // number, since those live in their own table and can't be matched
+    // by a filter on `contacts` alone.
+    const { data, error } = await supabase.rpc('search_contacts', {
+      p_tag_ids: selectedTagIds.length > 0 ? selectedTagIds : null,
+      p_search: term || null,
+      p_limit: PAGE_SIZE,
+      p_offset: from,
+    });
+    if (seq !== fetchSeq.current) return; // superseded by a newer fetch
+    if (error) {
+      toast.error(t('toastFailedLoad'));
+      setLoading(false);
+      return;
     }
+    const rows = (data ?? []) as { contact: Contact; total_count: number }[];
+    const contactRows: Contact[] = rows.map((r) => r.contact);
+    const count = rows.length > 0 ? Number(rows[0].total_count) : 0;
 
     setTotalCount(count);
 

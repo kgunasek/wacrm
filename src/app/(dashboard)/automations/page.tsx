@@ -43,6 +43,8 @@ import {
 import { AUTOMATION_TEMPLATES, type TemplateSlug } from "@/lib/automations/templates"
 import { triggerMeta, formatRelative, isKnownTrigger } from "@/lib/automations/trigger-meta"
 import { cn } from "@/lib/utils"
+import { RequireRole } from "@/components/auth/require-role";
+import { SectionUnavailable } from "@/components/auth/section-unavailable";
 
 const TEMPLATE_ORDER: TemplateSlug[] = [
   "welcome_message",
@@ -58,7 +60,7 @@ const TEMPLATE_ICON: Record<TemplateSlug, typeof Zap> = {
   follow_up_reminder: PhoneCall,
 }
 
-export default function AutomationsPage() {
+function AutomationsPageInner() {
   const router = useRouter()
   const canCreate = useCan("send-messages")
   const t = useTranslations("Automations.list")
@@ -370,4 +372,17 @@ function AutomationCard({
       </div>
     </li>
   )
+}
+
+/**
+ * Owner/admin only. The sidebar hides this section for everyone else,
+ * so this covers the bookmark-and-back-button routes in. Presentation
+ * only — the API routes remain the enforcing gate.
+ */
+export default function AutomationsPage() {
+  return (
+    <RequireRole min="admin" fallback={<SectionUnavailable />}>
+      <AutomationsPageInner />
+    </RequireRole>
+  );
 }

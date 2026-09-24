@@ -313,4 +313,16 @@ describe('POST /api/whatsapp/send — role enforcement', () => {
     expect(res.status).toBe(200)
     expect(sendTemplateMessage).toHaveBeenCalledTimes(1)
   })
+
+  it('attributes the message to the authenticated caller', async () => {
+    // With office staff and deliverymen sharing one WhatsApp number,
+    // the persisted row is the only record of who actually typed it.
+    callerRole = 'agent'
+
+    const res = await postContactTemplate()
+
+    expect(res.status).toBe(200)
+    expect(messageInserts).toHaveLength(1)
+    expect(messageInserts[0].sender_id).toBe('user-1')
+  })
 })

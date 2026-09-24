@@ -15,6 +15,19 @@
 // changes a one-file diff.
 // ============================================================
 
+/**
+ * How these map onto a gas-agency deployment, since the generic names
+ * don't say it: `owner` is the agency owner, who alone runs broadcasts
+ * and edits configuration. `agent` covers BOTH office staff and
+ * deliverymen — everyone whose job is answering customers — and the
+ * sidebar shows them only Inbox / Contacts / Notifications. `admin` is
+ * currently unused, reserved for a deputy who needs the owner's tools
+ * without the owner-only destructive actions. `viewer` is unused.
+ *
+ * Note that role gates the MENU, not the API: an `agent` still passes
+ * `canSendMessages`, which the broadcast routes also require. Tightening
+ * that is a deliberate future step, not an oversight.
+ */
 export type AccountRole = "owner" | "admin" | "agent" | "viewer";
 
 /** Ordered list of every valid role, lowest privilege first. */

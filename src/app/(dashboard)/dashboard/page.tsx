@@ -1,8 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { canEditSettings } from '@/lib/auth/roles'
 import { formatCurrency } from '@/lib/currency'
 import {
   MessageSquare,
@@ -40,7 +42,18 @@ type RangeDays = 7 | 30 | 90
 
 export default function DashboardPage() {
   const t = useTranslations('Dashboard.page')
-  const { defaultCurrency } = useAuth()
+  const router = useRouter()
+  const { defaultCurrency, accountRole, profileLoading } = useAuth()
+
+  // This is where login lands, but it's an analytics screen that staff
+  // and deliverymen have no nav entry for. Send them to the inbox —
+  // the one place their work actually happens — rather than a page of
+  // charts they can't act on.
+  const redirectToInbox =
+    !profileLoading && !!accountRole && !canEditSettings(accountRole)
+  useEffect(() => {
+    if (redirectToInbox) router.replace('/inbox')
+  }, [redirectToInbox, router])
   const [metrics, setMetrics] = useState<MetricsBundle | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(true)
 
@@ -100,8 +113,12 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
+    // Skip the metric queries entirely for anyone we're about to bounce
+    // to the inbox — several of them read tables their role can't, so
+    // this avoids a burst of doomed requests on every staff login.
+    if (redirectToInbox) return
     loadAll()
-  }, [loadAll])
+  }, [loadAll, redirectToInbox])
 
   // Range switch handler — kept in an event callback (not an effect)
   // so the setState calls stay out of the react-hooks/set-state-in-effect
@@ -120,6 +137,10 @@ export default function DashboardPage() {
     },
     [series],
   )
+
+  // Nothing to show during the hop to /inbox; rendering the charts here
+  // would flash an empty analytics screen mid-redirect.
+  if (redirectToInbox) return null
 
   return (
     <div className="space-y-5">

@@ -33,6 +33,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { RequireRole } from "@/components/auth/require-role";
+import { SectionUnavailable } from "@/components/auth/section-unavailable";
 
 /**
  * Flows list page.
@@ -82,7 +84,7 @@ const TEMPLATE_ICONS = {
   UserPlus,
 } as const;
 
-export default function FlowsPage() {
+function FlowsPageInner() {
   const router = useRouter();
   const canCreate = useCan("send-messages");
   const t = useTranslations("Flows.list");
@@ -437,4 +439,17 @@ function describeTrigger(flow: FlowRow, t: ReturnType<typeof useTranslations>): 
     return t("triggerFirstInbound");
   }
   return t("triggerManual");
+}
+
+/**
+ * Owner/admin only. The sidebar hides this section for everyone else,
+ * so this covers the bookmark-and-back-button routes in. Presentation
+ * only — the API routes remain the enforcing gate.
+ */
+export default function FlowsPage() {
+  return (
+    <RequireRole min="admin" fallback={<SectionUnavailable />}>
+      <FlowsPageInner />
+    </RequireRole>
+  );
 }

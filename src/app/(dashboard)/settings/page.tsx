@@ -19,9 +19,12 @@ import { DealsSettings } from '@/components/settings/deals-settings';
 import { MembersTab } from '@/components/settings/members-tab';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import {
+  DEFAULT_SECTION,
+  SECTION_META,
   resolveSection,
   type SettingsSection,
 } from '@/components/settings/settings-sections';
+import { hasMinRole } from '@/lib/auth/roles';
 
 // `useSearchParams` opts this page out of static prerendering unless it
 // sits under a Suspense boundary. Without one, the production build hits
@@ -42,7 +45,7 @@ export default function SettingsPage() {
 function SettingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { defaultCurrency } = useAuth();
+  const { defaultCurrency, accountRole, profileLoading } = useAuth();
   const { mode } = useTheme();
   const t = useTranslations('Settings');
 
@@ -50,7 +53,16 @@ function SettingsPageInner() {
   // section — deep-linkable, and it keeps the existing links in the
   // app sidebar/header working. Legacy tab values (tags, custom-fields)
   // resolve onto their new home; unknown/empty → the Overview landing.
-  const section = resolveSection(searchParams.get('tab'));
+  const requested = resolveSection(searchParams.get('tab'));
+  // A section hidden from the rail must not be reachable by typing its
+  // ?tab= value either, or the restriction is only skin deep. Falls back
+  // to Overview, which every role can see.
+  const requestedMinRole = SECTION_META[requested].minRole;
+  const section: SettingsSection =
+    !requestedMinRole ||
+    (!profileLoading && !!accountRole && hasMinRole(accountRole, requestedMinRole))
+      ? requested
+      : DEFAULT_SECTION;
 
   const go = (next: SettingsSection) => {
     const params = new URLSearchParams(searchParams.toString());

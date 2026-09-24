@@ -66,7 +66,9 @@
     "unlinkedBody": "Nada do que você alterar será salvo enquanto isso não for resolvido — o banco de dados rejeita toda gravação de um usuário sem conta ou função. Se você foi convidado para uma equipe, peça ao proprietário para reenviar o convite. Em uma instalação própria, verifique se a migração de bootstrap da conta foi executada para este usuário.",
     "errorTitle": "Não foi possível carregar suas permissões",
     "errorBody": "A função da sua conta não foi carregada, então toda ação é tratada como somente leitura e as alterações não serão salvas. Verifique sua conexão e tente novamente.",
-    "retry": "Tentar novamente"
+    "retry": "Tentar novamente",
+    "sectionUnavailableTitle": "Indisponível para a sua função",
+    "sectionUnavailableBody": "Esta seção é gerenciada pelo proprietário da conta. Se precisar de acesso, peça que ele atualize sua função."
   },
   "Dashboard": {
     "page": {
@@ -239,6 +241,7 @@
       "unsupported": "[Tipo de mensagem não suportado]",
       "aiBadge": "IA",
       "aiBadgeTitle": "Enviada automaticamente pelo assistente de IA",
+      "sentByTitle": "Enviada por {name}",
       "notDelivered": "Não entregue",
       "download": "Baixar",
       "downloadFailed": "Não foi possível baixar o anexo",

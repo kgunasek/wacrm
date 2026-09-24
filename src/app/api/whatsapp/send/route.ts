@@ -165,6 +165,9 @@ export async function POST(request: Request) {
         templateMessageParams: template_message_params,
         interactivePayload: interactive_payload,
         replyToMessageId: reply_to_message_id,
+        // This is the only send path with a real human behind it, so
+        // it is the only one that attributes the message.
+        senderId: userId,
       })
 
       return NextResponse.json({

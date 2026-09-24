@@ -66,7 +66,9 @@
     "unlinkedBody": "Nada de lo que cambies se guardará mientras esto no se resuelva: la base de datos rechaza toda escritura de un usuario sin cuenta ni rol. Si te invitaron a un equipo, pide al propietario que reenvíe la invitación. En una instalación propia, verifica que la migración de bootstrap de la cuenta se haya ejecutado para este usuario.",
     "errorTitle": "No se pudieron cargar tus permisos",
     "errorBody": "El rol de tu cuenta no se cargó, así que toda acción se trata como de solo lectura y los cambios no se guardarán. Revisa tu conexión e inténtalo de nuevo.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "sectionUnavailableTitle": "No disponible para tu rol",
+    "sectionUnavailableBody": "Esta sección la gestiona el propietario de la cuenta. Si necesitas acceder, pídele que actualice tu rol."
   },
   "Dashboard": {
     "page": {
@@ -239,6 +241,7 @@
       "unsupported": "[Tipo de mensaje no compatible]",
       "aiBadge": "IA",
       "aiBadgeTitle": "Enviado automáticamente por el asistente de IA",
+      "sentByTitle": "Enviado por {name}",
       "notDelivered": "No entregado",
       "download": "Descargar",
       "downloadFailed": "No se pudo descargar el adjunto",

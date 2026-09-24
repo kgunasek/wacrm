@@ -4,6 +4,8 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
+import { hasMinRole } from '@/lib/auth/roles';
 import {
   RAIL_GROUPS,
   SECTION_META,
@@ -32,6 +34,7 @@ export function SettingsRail({
   hints?: Partial<Record<SettingsSection, ReactNode>>;
 }) {
   const t = useTranslations('Settings');
+  const { accountRole, profileLoading } = useAuth();
   const activeRef = useRef<HTMLButtonElement>(null);
 
   // When horizontal (mobile), keep the active chip in view. On desktop
@@ -56,9 +59,18 @@ export function SettingsRail({
       )}
     >
       {RAIL_GROUPS.map(({ label, group }) => {
-        const items = SETTINGS_SECTIONS.filter(
-          (s) => SECTION_META[s].group === group,
-        );
+        const items = SETTINGS_SECTIONS.filter((s) => {
+          const meta = SECTION_META[s];
+          if (meta.group !== group) return false;
+          if (!meta.minRole) return true;
+          // Fail closed while the role resolves, same as the sidebar.
+          return (
+            !profileLoading && !!accountRole && hasMinRole(accountRole, meta.minRole)
+          );
+        });
+        // Every section in this group is gated away — drop the heading
+        // too, rather than leaving a "Workspace" label over nothing.
+        if (items.length === 0) return null;
         return (
           <div
             key={group}

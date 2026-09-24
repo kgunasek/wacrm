@@ -33,6 +33,12 @@ interface MessageBubbleProps {
   currentUserId?: string;
   onToggleReaction?: (emoji: string) => void;
   /**
+   * Display name of the teammate who sent this, for accounts where more
+   * than one person works the same threads. Null for inbound, bot sends,
+   * and rows predating migration 043 — all of which render no label.
+   */
+  senderName?: string | null;
+  /**
    * Opens the thread's media viewer on this message. Only images and videos
    * call it; omitted when the parent renders no viewer, in which case media
    * stays inline and non-clickable.
@@ -270,6 +276,7 @@ export function MessageBubble({
   currentUserId,
   onToggleReaction,
   onOpenMedia,
+  senderName,
 }: MessageBubbleProps) {
   const t = useTranslations("Inbox.bubble");
 
@@ -300,6 +307,18 @@ export function MessageBubble({
             preview={reply.preview}
             onPrimary={isAgent}
           />
+        )}
+        {/* Who on our side typed this. Sits above the content in the
+            style of a WhatsApp group sender label, so scrolling a
+            shared thread reads as a conversation between named people
+            rather than one anonymous voice. */}
+        {isAgent && senderName && (
+          <p
+            className="mb-0.5 text-[10px] font-medium text-primary-foreground/70"
+            title={t("sentByTitle", { name: senderName })}
+          >
+            {senderName}
+          </p>
         )}
         <MessageContent
           message={message}

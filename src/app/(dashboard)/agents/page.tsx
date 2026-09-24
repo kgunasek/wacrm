@@ -9,10 +9,12 @@ import { AiUsageCard } from '@/components/agents/ai-usage';
 import { AiConfig } from '@/components/settings/ai-config';
 import { useAuth } from '@/hooks/use-auth';
 import { canEditSettings } from '@/lib/auth/roles';
+import { RequireRole } from "@/components/auth/require-role";
+import { SectionUnavailable } from "@/components/auth/section-unavailable";
 
 type Tab = 'playground' | 'setup' | 'usage';
 
-export default function AgentsPage() {
+function AgentsPageInner() {
   const t = useTranslations('Agents');
   const { accountRole } = useAuth();
   const canViewUsage = accountRole ? canEditSettings(accountRole) : false;
@@ -86,5 +88,18 @@ export default function AgentsPage() {
         </Tabs>
       )}
     </div>
+  );
+}
+
+/**
+ * Owner/admin only. The sidebar hides this section for everyone else,
+ * so this covers the bookmark-and-back-button routes in. Presentation
+ * only — the API routes remain the enforcing gate.
+ */
+export default function AgentsPage() {
+  return (
+    <RequireRole min="admin" fallback={<SectionUnavailable />}>
+      <AgentsPageInner />
+    </RequireRole>
   );
 }

@@ -210,8 +210,9 @@ export function MessageThread({
   } | null>(null);
 
   // Profiles are bounded by RLS to rows the current user is allowed to
-  // see — today that's just the current user, but the dropdown keeps the
-  // shape ready for shared-team workspaces without a refactor.
+  // see — since migration 017 that's every member of the account, which
+  // is what makes both the assignee dropdown and the per-message sender
+  // labels work without a second query.
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
@@ -231,6 +232,19 @@ export function MessageThread({
       cancelled = true;
     };
   }, []);
+
+  // Names for the per-message "who sent this" label. The profiles fetch
+  // above already pulls every teammate, so this needs no extra query and
+  // no join on the messages read — which also means realtime-inserted
+  // rows get a name for free, since it resolves off the row's own
+  // sender_id rather than an embed the realtime payload wouldn't carry.
+  const memberNames = useMemo(
+    () => new Map(profiles.map((p) => [p.user_id, p.full_name])),
+    [profiles],
+  );
+  // A single-person account has nothing to disambiguate, so labelling
+  // every bubble there would be pure noise.
+  const showSenderNames = profiles.length > 1;
 
   // 24-hour session timer
   const sessionInfo = useMemo(() => {
@@ -1149,6 +1163,11 @@ export function MessageThread({
                           currentUserId={user?.id}
                           onToggleReaction={handlePillToggle}
                           onOpenMedia={handleMediaChange}
+                          senderName={
+                            showSenderNames
+                              ? (memberNames.get(msg.sender_id ?? "") ?? null)
+                              : null
+                          }
                         />
                       </MessageActions>
                     );

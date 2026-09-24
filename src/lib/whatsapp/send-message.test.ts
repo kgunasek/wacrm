@@ -445,3 +445,33 @@ describe('sendMessageToConversation — BSUID recipients (#519)', () => {
     ).rejects.toThrow(/no phone number or WhatsApp user ID/);
   });
 });
+
+describe('sendMessageToConversation — sender attribution', () => {
+  it('persists the sending teammate on the message row', async () => {
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'On my way with your cylinder',
+      senderId: 'user-ravi',
+    });
+
+    expect(captured.message?.sender_id).toBe('user-ravi');
+    // sender_type stays the broad category; sender_id is what tells
+    // one teammate's messages from another's.
+    expect(captured.message?.sender_type).toBe('agent');
+  });
+
+  it('leaves sender_id null when no sender is supplied', async () => {
+    const captured: CapturedWrites = {};
+    await sendMessageToConversation(sendPathDb([], captured), 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'hi',
+    });
+
+    // Automation and public-API callers land here. NULL rather than
+    // undefined so the column is written explicitly.
+    expect(captured.message?.sender_id).toBeNull();
+  });
+});

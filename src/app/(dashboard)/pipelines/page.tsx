@@ -30,6 +30,8 @@ import { useCan } from "@/hooks/use-can";
 import { useAuth } from "@/hooks/use-auth";
 import { GatedButton } from "@/components/ui/gated-button";
 import { useTranslations } from "next-intl";
+import { RequireRole } from "@/components/auth/require-role";
+import { SectionUnavailable } from "@/components/auth/section-unavailable";
 
 // Pipeline creation is admin-class (settings-tier write under
 // the new RLS); deal creation is operational and only requires
@@ -45,7 +47,7 @@ const SPEC_DEFAULT_STAGES = [
   { name: "Won", color: "#22c55e", position: 4 }, // green
 ];
 
-export default function PipelinesPage() {
+function PipelinesPageInner() {
   const t = useTranslations("Pipelines.page");
   const supabase = createClient();
   const canEditSettings = useCan("edit-settings");
@@ -490,5 +492,18 @@ export default function PipelinesPage() {
         onSaved={refreshDeals}
       />
     </div>
+  );
+}
+
+/**
+ * Owner/admin only. The sidebar hides this section for everyone else,
+ * so this covers the bookmark-and-back-button routes in. Presentation
+ * only — the API routes remain the enforcing gate.
+ */
+export default function PipelinesPage() {
+  return (
+    <RequireRole min="admin" fallback={<SectionUnavailable />}>
+      <PipelinesPageInner />
+    </RequireRole>
   );
 }

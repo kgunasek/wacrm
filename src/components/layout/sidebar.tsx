@@ -26,7 +26,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import type { AccountRole } from "@/lib/auth/roles";
+import { hasMinRole, type AccountRole } from "@/lib/auth/roles";
 
 // Per-role chip metadata used in the sidebar's account strip + the
 // Members tab roster. Keeping this near both consumers in a single
@@ -87,18 +87,25 @@ interface NavItem {
    * Purely informational — doesn't affect routing or access.
    */
   beta?: boolean;
+  /**
+   * Hide this row from anyone below the given role. Presentation only —
+   * the API routes and RLS remain the real gate, so this keeps the
+   * campaign-and-configuration tools out of the way of people whose job
+   * is answering customers, rather than securing them.
+   */
+  minRole?: AccountRole;
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard, minRole: "admin" },
   { href: "/inbox", labelKey: "inbox", icon: MessageSquare },
   { href: "/notifications", labelKey: "notifications", icon: Bell },
   { href: "/contacts", labelKey: "contacts", icon: Users },
-  { href: "/pipelines", labelKey: "pipelines", icon: GitBranch },
-  { href: "/broadcasts", labelKey: "broadcasts", icon: Radio },
-  { href: "/automations", labelKey: "automations", icon: Zap },
-  { href: "/flows", labelKey: "flows", icon: Workflow, beta: true },
-  { href: "/agents", labelKey: "aiAgents", icon: Bot },
+  { href: "/pipelines", labelKey: "pipelines", icon: GitBranch, minRole: "admin" },
+  { href: "/broadcasts", labelKey: "broadcasts", icon: Radio, minRole: "admin" },
+  { href: "/automations", labelKey: "automations", icon: Zap, minRole: "admin" },
+  { href: "/flows", labelKey: "flows", icon: Workflow, beta: true, minRole: "admin" },
+  { href: "/agents", labelKey: "aiAgents", icon: Bot, minRole: "admin" },
 ];
 
 const bottomNavItems = [
@@ -131,6 +138,15 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
     !profileLoading &&
     !!account?.name &&
     account.name !== profile?.full_name;
+
+  // Fail closed while the role is still resolving: showing the full menu
+  // and then removing rows a moment later reads as the app taking things
+  // away, so gated rows stay hidden until we know they belong.
+  const visibleNavItems = navItems.filter(
+    (item) =>
+      !item.minRole ||
+      (!profileLoading && !!accountRole && hasMinRole(accountRole, item.minRole)),
+  );
 
   // Close the drawer when route changes — users opened it to navigate,
   // so once they pick a destination the drawer should get out of the way.
@@ -208,7 +224,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         {/* Main navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="flex flex-col gap-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));

@@ -88,6 +88,13 @@ export interface SendMessageParams {
   /** Structured payload for `messageType === 'interactive'`. */
   interactivePayload?: InteractiveMessagePayload | null;
   replyToMessageId?: string | null;
+  /**
+   * auth.users id of the team member who pressed send, persisted to
+   * `messages.sender_id`. Set by the dashboard route only — automation
+   * and public-API callers leave it unset so the row stays NULL. See
+   * that column's comment (migration 043) for the full contract.
+   */
+  senderId?: string | null;
 }
 
 export interface SendMessageResult {
@@ -201,6 +208,7 @@ export async function sendMessageToConversation(
     templateMessageParams,
     interactivePayload,
     replyToMessageId,
+    senderId,
   } = params;
 
   if (!conversationId) {
@@ -489,6 +497,7 @@ export async function sendMessageToConversation(
     .insert({
       conversation_id: conversationId,
       sender_type: 'agent',
+      sender_id: senderId ?? null,
       content_type: messageType,
       content_text: persistedText,
       media_url: mediaUrl || null,

@@ -175,6 +175,15 @@ export function MessageThread({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  // Consumer No. (or whatever custom field this account leads with) —
+  // shown in the header between the name and phone number, since that
+  // number is how this business actually identifies a customer, not
+  // the phone. Resolved by field name rather than a hard-coded id, so
+  // it keeps working if the field is ever recreated.
+  const [leadCustomValue, setLeadCustomValue] = useState<{
+    fieldName: string;
+    value: string;
+  } | null>(null);
   const [reactions, setReactions] = useState<MessageReaction[]>([]);
   // Purely visual spin state for the manual-refresh button. The actual
   // refetch is fire-and-forget through `onRefresh` (which bumps the
@@ -232,6 +241,44 @@ export function MessageThread({
       cancelled = true;
     };
   }, []);
+
+  // The lead custom field (e.g. "Consumer No.") for the contact behind
+  // this thread — refetched whenever the open conversation changes.
+  // Just the oldest-defined field, not every field: the header has room
+  // for one line, and the full set is already one click away in the
+  // contact sidebar.
+  useEffect(() => {
+    if (!contact?.id) {
+      setLeadCustomValue(null);
+      return;
+    }
+    let cancelled = false;
+    const supabase = createClient();
+    supabase
+      .from("custom_fields")
+      .select("id, field_name")
+      .order("created_at")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data: field }) => {
+        if (cancelled || !field) return;
+        supabase
+          .from("contact_custom_values")
+          .select("value")
+          .eq("contact_id", contact.id)
+          .eq("custom_field_id", field.id)
+          .maybeSingle()
+          .then(({ data: row }) => {
+            if (cancelled) return;
+            setLeadCustomValue(
+              row?.value ? { fieldName: field.field_name, value: row.value } : null,
+            );
+          });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contact?.id]);
 
   // Names for the per-message "who sent this" label. The profiles fetch
   // above already pulls every teammate, so this needs no extra query and
@@ -937,6 +984,11 @@ export function MessageThread({
           </div>
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-foreground">{displayName}</h2>
+            {leadCustomValue && (
+              <p className="truncate text-xs text-muted-foreground">
+                {leadCustomValue.fieldName}: {leadCustomValue.value}
+              </p>
+            )}
             <p className="truncate text-xs text-muted-foreground">
               {contactHandle(contact)}
             </p>
